@@ -9,6 +9,7 @@ filesystem changes produce a byte-identical file.
 
 from __future__ import annotations
 
+import io
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -89,10 +90,10 @@ class ProjectConfig:
             },
         )
 
-    def save(self, path: Path, entry_order: list[str] | None = None) -> None:
-        """Write the config atomically. `entry_order` (a list of config
-        keys) controls the order entries are serialized in; keys not listed
-        are appended afterwards in their existing order.
+    def to_yaml_string(self, entry_order: list[str] | None = None) -> str:
+        """Serialize to the exact text `save()` would write, without
+        touching disk — lets `generate --check` compare against the
+        existing file's bytes.
         """
         ordered_keys = list(entry_order or [])
         remaining = [k for k in self.entries if k not in ordered_keys]
@@ -115,9 +116,19 @@ class ProjectConfig:
             },
         }
 
+        buf = io.StringIO()
+        _yaml.dump(doc, buf)
+        return buf.getvalue()
+
+    def save(self, path: Path, entry_order: list[str] | None = None) -> None:
+        """Write the config atomically. `entry_order` (a list of config
+        keys) controls the order entries are serialized in; keys not listed
+        are appended afterwards in their existing order.
+        """
+        content = self.to_yaml_string(entry_order)
         tmp_path = path.with_suffix(path.suffix + ".tmp")
         with tmp_path.open("w", encoding="utf-8", newline="\n") as f:
-            _yaml.dump(doc, f)
+            f.write(content)
         tmp_path.replace(path)
 
     # -- entry helpers ----------------------------------------------------

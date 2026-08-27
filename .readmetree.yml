@@ -23,13 +23,13 @@ entries:
   src/readmetree/commands/edit.py:
     description: "readmetree edit <path>: point-edit one description without a full rescan"
   src/readmetree/commands/generate.py:
-    description: "readmetree generate: full scan, diff against config, prompt for new paths, update README.md"
+    description: "readmetree generate: full scan, diff against config, prompt for new paths, update README.md; --check for CI"
   src/readmetree/__init__.py:
     description: "package version"
   src/readmetree/cli.py:
     description: "argparse entry point, dispatches to the generate/edit subcommands"
   src/readmetree/config.py:
-    description: ".readmetree.yml model: load/save (ruamel.yaml round-trip) and diff against a scan"
+    description: ".readmetree.yml model: load/save/serialize (ruamel.yaml round-trip) and diff against a scan"
   src/readmetree/defaults.py:
     description: "always-ignored paths, README markers, header/source extension-pair whitelist"
   src/readmetree/ignore.py:
@@ -52,6 +52,8 @@ entries:
     description: ""
   tests/conftest.py:
     description: "pytest fixture: a fresh tmp_path copy of the example project fixture"
+  tests/test_check.py:
+    description: "generate --check: non-interactive, writes nothing, correct exit code"
   tests/test_config_diff.py:
     description: ".readmetree.yml load/save round-trip and new/removed/kept diffing"
   tests/test_e2e_generate.py:
@@ -68,6 +70,8 @@ entries:
     description: "git-tracked-files filtering, worktree .git-as-file, untracking keeps the description"
   tests/test_scanner_pruning.py:
     description: "empty directories (including cascaded-empty ones) are dropped from the tree"
+  .pre-commit-hooks.yaml:
+    description: "defines the readmetree-check hook for other repos' pre-commit configs"
   LICENSE:
     description: "MIT license"
   pyproject.toml:

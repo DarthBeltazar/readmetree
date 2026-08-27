@@ -56,6 +56,27 @@ Useful flags: `--dry-run` (show what would change, write nothing),
 `-v`/`--verbose`, `--config`/`--readme`/`--root` to override the default
 locations.
 
+### CI / pre-commit: `--check`
+
+`--dry-run` always exits `0` — it's for a human to glance at, not for a
+build to gate on. `readmetree generate --check` is the CI-friendly version:
+non-interactive, writes nothing, and exits `1` if a real `generate` run
+would change README.md or `.readmetree.yml` (new undescribed paths,
+descriptions edited by hand but not yet regenerated, paths added/removed,
+...).
+
+To run it automatically before every commit via
+[pre-commit](https://pre-commit.com), add to your project's
+`.pre-commit-config.yaml`:
+
+```yaml
+repos:
+  - repo: https://github.com/DarthBeltazar/readmetree
+    rev: main  # pin to a tag once you've picked one
+    hooks:
+      - id: readmetree-check
+```
+
 ### Descriptions live in `.readmetree.yml`
 
 Path → description, next to your project. Edit it by hand if you like —
@@ -106,10 +127,10 @@ directory; pass `--root` explicitly if that's not what you want.
 │       │   ├── __init__.py
 │       │   ├── _shared.py   # shared plumbing: build the ignore matcher + scan the tree, build the comment map
 │       │   ├── edit.py      # readmetree edit <path>: point-edit one description without a full rescan
-│       │   └── generate.py  # readmetree generate: full scan, diff against config, prompt for new paths, update README.md
+│       │   └── generate.py  # readmetree generate: full scan, diff against config, prompt for new paths, update README.md; --check for CI
 │       ├── __init__.py   # package version
 │       ├── cli.py        # argparse entry point, dispatches to the generate/edit subcommands
-│       ├── config.py     # .readmetree.yml model: load/save (ruamel.yaml round-trip) and diff against a scan
+│       ├── config.py     # .readmetree.yml model: load/save/serialize (ruamel.yaml round-trip) and diff against a scan
 │       ├── defaults.py   # always-ignored paths, README markers, header/source extension-pair whitelist
 │       ├── ignore.py     # path filtering: .gitignore, always-excluded paths, and git-tracked-files-only
 │       ├── model.py      # tree dataclasses: FileNode, DirNode, CollapsedGroupNode
@@ -121,6 +142,7 @@ directory; pass `--root` explicitly if that's not what you want.
 │       └── scanner.py    # walks the filesystem, applies ignore rules, merges pairs/collapsed groups, sorts the tree
 ├── tests/
 │   ├── conftest.py                # pytest fixture: a fresh tmp_path copy of the example project fixture
+│   ├── test_check.py              # generate --check: non-interactive, writes nothing, correct exit code
 │   ├── test_config_diff.py        # .readmetree.yml load/save round-trip and new/removed/kept diffing
 │   ├── test_e2e_generate.py       # full CLI runs (generate/edit) against the example project fixture
 │   ├── test_pairing.py            # header/source pair merging rules
@@ -129,9 +151,10 @@ directory; pass `--root` explicitly if that's not what you want.
 │   ├── test_render_idempotent.py  # ASCII tree rendering, comment-column alignment, idempotency
 │   ├── test_scanner_ignore.py     # git-tracked-files filtering, worktree .git-as-file, untracking keeps the description
 │   └── test_scanner_pruning.py    # empty directories (including cascaded-empty ones) are dropped from the tree
-├── LICENSE           # MIT license
-├── pyproject.toml    # package metadata, dependencies, the readmetree console-script entry point
-├── README.ru.md      # hand-translated Russian README (may lag behind README.md)
-└── requirements.txt  # dependencies for local development (mirrors pyproject.toml, plus pytest)
+├── .pre-commit-hooks.yaml  # defines the readmetree-check hook for other repos' pre-commit configs
+├── LICENSE                 # MIT license
+├── pyproject.toml          # package metadata, dependencies, the readmetree console-script entry point
+├── README.ru.md            # hand-translated Russian README (may lag behind README.md)
+└── requirements.txt        # dependencies for local development (mirrors pyproject.toml, plus pytest)
 ```
 <!-- tree:end -->

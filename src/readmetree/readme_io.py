@@ -23,13 +23,44 @@ def update_readme(readme_path: Path, project_name: str, tree_text: str) -> bool:
     Returns True if the file was created or its content changed, False if
     it was already up to date (no write performed).
     """
+    original, new_content, appended_without_markers = _compute_new_content(
+        readme_path, project_name, tree_text
+    )
+
+    if original is not None and new_content == original:
+        return False
+
+    _atomic_write(readme_path, new_content)
+    if appended_without_markers:
+        print(f"Note: no {TREE_START_MARKER}/{TREE_END_MARKER} markers found in "
+              f"{readme_path.name}; appended the tree block to the end of the file.")
+    return True
+
+
+def would_change(readme_path: Path, project_name: str, tree_text: str) -> bool:
+    """Like update_readme, but only reports whether a write would happen —
+    never touches disk. Used by `generate --check`.
+    """
+    original, new_content, _ = _compute_new_content(readme_path, project_name, tree_text)
+    return original is None or new_content != original
+
+
+def _compute_new_content(
+    readme_path: Path, project_name: str, tree_text: str
+) -> tuple[str | None, str, bool]:
+    """Returns (original_content_or_None, new_content, appended_without_markers).
+
+    `new_content` is already normalized to whatever line-ending convention
+    the file should end up with, so callers can compare it directly against
+    `original` (or, for a not-yet-existing file, `original` is None and any
+    write is required). Raises ReadmeMarkerError on malformed markers.
+    """
     newline = _detect_newline(readme_path)
     block = _build_block(tree_text)
 
     if not readme_path.exists():
         content = f"# {project_name}{newline}{newline}{block}{newline}"
-        _atomic_write(readme_path, content, newline)
-        return True
+        return None, content, False
 
     original = readme_path.read_text(encoding="utf-8")
     start_idx = original.find(TREE_START_MARKER)
@@ -39,12 +70,8 @@ def update_readme(readme_path: Path, project_name: str, tree_text: str) -> bool:
         sep = "" if original.endswith(("\n", "\r\n")) else newline
         extra_blank = "" if original.rstrip("\r\n") == "" else newline
         new_content = original + sep + extra_blank + block + newline
-        if new_content == original:
-            return False
-        _atomic_write(readme_path, new_content, newline, raw=True)
-        print(f"Note: no {TREE_START_MARKER}/{TREE_END_MARKER} markers found in "
-              f"{readme_path.name}; appended the tree block to the end of the file.")
-        return True
+        new_content = _normalize_mixed_newlines(new_content, original, newline)
+        return original, new_content, True
 
     if start_idx == -1 or end_idx == -1:
         raise ReadmeMarkerError(
@@ -67,11 +94,20 @@ def update_readme(readme_path: Path, project_name: str, tree_text: str) -> bool:
     before = original[:start_idx]
     after = original[end_idx + len(TREE_END_MARKER):]
     new_content = before + block + after
+    new_content = _normalize_mixed_newlines(new_content, original, newline)
 
-    if new_content == original:
-        return False
-    _atomic_write(readme_path, new_content, newline, raw=True)
-    return True
+    return original, new_content, False
+
+
+def _normalize_mixed_newlines(new_content: str, original: str, newline: str) -> str:
+    """`new_content` mixes the original file's line endings with
+    freshly-generated "\\n"-only text (the tree block) — if the file uses
+    "\\r\\n", normalize the whole thing once so the result is consistent
+    (and doesn't spuriously differ from `original` when nothing changed).
+    """
+    if new_content == original or newline != "\r\n":
+        return new_content
+    return new_content.replace("\r\n", "\n").replace("\n", "\r\n")
 
 
 def _build_block(tree_text: str) -> str:
@@ -88,15 +124,10 @@ def _detect_newline(path: Path) -> str:
     return "\n"
 
 
-def _atomic_write(path: Path, content: str, newline: str, raw: bool = False) -> None:
-    if not raw and newline != "\n":
-        content = content.replace("\n", newline)
-    elif raw and newline == "\r\n":
-        # content built from a mix of freshly-generated "\n" text spliced
-        # into an original file that may use "\r\n" — normalize once so the
-        # whole file is consistent.
-        content = content.replace("\r\n", "\n").replace("\n", "\r\n")
-
+def _atomic_write(path: Path, content: str) -> None:
+    """Write already-normalized `content` verbatim (newline="" disables any
+    further translation — the caller decided the line-ending convention).
+    """
     fd, tmp_name = tempfile.mkstemp(dir=str(path.parent), prefix=path.name + ".", suffix=".tmp")
     try:
         with os.fdopen(fd, "w", encoding="utf-8", newline="") as f:

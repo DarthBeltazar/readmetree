@@ -1,0 +1,9 @@
+- id: readmetree-check
+  name: readmetree (README tree up to date)
+  description: >-
+    Fails if the annotated project tree in README.md is out of date.
+    Run `readmetree generate` locally to fix, then re-stage and commit.
+  entry: readmetree generate --check
+  language: python
+  pass_filenames: false
+  always_run: true

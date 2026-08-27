@@ -55,6 +55,27 @@ readmetree edit src/core/Vec3.h
 `-v`/`--verbose`, `--config`/`--readme`/`--root` — переопределить пути по
 умолчанию.
 
+### CI / pre-commit: `--check`
+
+`--dry-run` всегда завершается кодом `0` — он для человека, чтобы посмотреть
+глазами, а не для сборки, которая должна упасть при рассинхроне. `readmetree
+generate --check` — вариант для CI: неинтерактивный, ничего не пишет на
+диск, и завершается кодом `1`, если реальный запуск `generate` изменил бы
+`README.md` или `.readmetree.yml` (новые неописанные пути, описание
+поправили руками, но не пересобрали, пути добавились/исчезли, ...).
+
+Чтобы запускать это автоматически перед каждым коммитом через
+[pre-commit](https://pre-commit.com), добавьте в `.pre-commit-config.yaml`
+вашего проекта:
+
+```yaml
+repos:
+  - repo: https://github.com/DarthBeltazar/readmetree
+    rev: main  # закрепите на теге, когда он появится
+    hooks:
+      - id: readmetree-check
+```
+
 ### Описания хранятся в `.readmetree.yml`
 
 Путь → описание, рядом с вашим проектом. Можно редактировать руками —
@@ -101,46 +122,9 @@ readmetree edit src/core/Vec3.h
 
 ## Дерево проекта
 
-Ниже — дерево, которое `readmetree` сгенерировал сам для себя (dogfooding).
-Комментарии в нём на английском, как и весь остальной код и документация
-инструмента; актуальную версию смотрите в [README.md](README.md) — этот
-файл переводится вручную и может немного отставать.
-
-```
-├── .github/
-│   └── workflows/
-│       └── tests.yml  # GitHub Actions: run pytest on push/PR to main (Python 3.9 and 3.12)
-├── src/
-│   └── readmetree/
-│       ├── commands/     # generate/edit command orchestration
-│       │   ├── __init__.py
-│       │   ├── _shared.py   # shared plumbing: build the ignore matcher + scan the tree, build the comment map
-│       │   ├── edit.py      # readmetree edit <path>: point-edit one description without a full rescan
-│       │   └── generate.py  # readmetree generate: full scan, diff against config, prompt for new paths, update README.md
-│       ├── __init__.py   # package version
-│       ├── cli.py        # argparse entry point, dispatches to the generate/edit subcommands
-│       ├── config.py     # .readmetree.yml model: load/save (ruamel.yaml round-trip) and diff against a scan
-│       ├── defaults.py   # always-ignored paths, README markers, header/source extension-pair whitelist
-│       ├── ignore.py     # path filtering: .gitignore, always-excluded paths, and git-tracked-files-only
-│       ├── model.py      # tree dataclasses: FileNode, DirNode, CollapsedGroupNode
-│       ├── pairing.py    # merges Vec3.h + Vec3.cpp into one Vec3.h/.cpp tree line
-│       ├── prompt.py     # interactive prompting (questionary) and console output (rich)
-│       ├── readme_io.py  # finds the tree:start/tree:end markers and splices the rendered tree into README.md
-│       ├── render.py     # pure DirNode-tree -> ASCII tree-art renderer, with per-sibling-group comment alignment
-│       ├── rootfind.py   # locates the project root (nearest ancestor with .git, else cwd)
-│       └── scanner.py    # walks the filesystem, applies ignore rules, merges pairs/collapsed groups, sorts the tree
-├── tests/
-│   ├── conftest.py                # pytest fixture: a fresh tmp_path copy of the example project fixture
-│   ├── test_config_diff.py        # .readmetree.yml load/save round-trip and new/removed/kept diffing
-│   ├── test_e2e_generate.py       # full CLI runs (generate/edit) against the example project fixture
-│   ├── test_pairing.py            # header/source pair merging rules
-│   ├── test_prompt_fallback.py    # plain input() fallback when questionary can't attach to a console
-│   ├── test_readme_markers.py     # tree:start/tree:end marker splicing, including CRLF and error cases
-│   ├── test_render_idempotent.py  # ASCII tree rendering, comment-column alignment, idempotency
-│   ├── test_scanner_ignore.py     # git-tracked-files filtering, worktree .git-as-file, untracking keeps the description
-│   └── test_scanner_pruning.py    # empty directories (including cascaded-empty ones) are dropped from the tree
-├── LICENSE           # MIT license
-├── pyproject.toml    # package metadata, dependencies, the readmetree console-script entry point
-├── README.ru.md      # hand-translated Russian README (may lag behind README.md)
-└── requirements.txt  # dependencies for local development (mirrors pyproject.toml, plus pytest)
-```
+Дерево — автогенерируемая часть `readmetree`-блока и живёт только в
+[README.md](README.md#readmetreeautomizer) (сама структура и комментарии
+к ней — на английском, как и весь код инструмента). Здесь его не дублирую:
+копия руками неизбежно рассинхронизируется с реальной структурой при
+следующем `readmetree generate`, а этот файл переводится вручную и не
+обновляется автоматически.
