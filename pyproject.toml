@@ -3,6 +3,8 @@ name = "readmetree"
 version = "0.1.0"
 description = "Generate and maintain an annotated project tree inside README.md"
 requires-python = ">=3.9"
+license = "MIT"
+license-files = ["LICENSE"]
 dependencies = [
     "ruamel.yaml>=0.18",
     "pathspec>=0.12",

@@ -1,5 +1,9 @@
 # readmeTreeAutomizer
 
+[![tests](https://github.com/DarthBeltazar/readmetree/actions/workflows/tests.yml/badge.svg)](https://github.com/DarthBeltazar/readmetree/actions/workflows/tests.yml)
+[![License: MIT](https://img.shields.io/github/license/DarthBeltazar/readmetree)](LICENSE)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](pyproject.toml)
+
 *[Русская версия](README.ru.md)*
 
 A CLI tool that scans your project's file tree and keeps an annotated,
@@ -93,6 +97,9 @@ directory; pass `--root` explicitly if that's not what you want.
 
 <!-- tree:start -->
 ```
+├── .github/
+│   └── workflows/
+│       └── tests.yml  # GitHub Actions: run pytest on push/PR to main (Python 3.9 and 3.12)
 ├── src/
 │   └── readmetree/
 │       ├── commands/     # generate/edit command orchestration
@@ -122,6 +129,7 @@ directory; pass `--root` explicitly if that's not what you want.
 │   ├── test_render_idempotent.py  # ASCII tree rendering, comment-column alignment, idempotency
 │   ├── test_scanner_ignore.py     # git-tracked-files filtering, worktree .git-as-file, untracking keeps the description
 │   └── test_scanner_pruning.py    # empty directories (including cascaded-empty ones) are dropped from the tree
+├── LICENSE           # MIT license
 ├── pyproject.toml    # package metadata, dependencies, the readmetree console-script entry point
 ├── README.ru.md      # hand-translated Russian README (may lag behind README.md)
 └── requirements.txt  # dependencies for local development (mirrors pyproject.toml, plus pytest)

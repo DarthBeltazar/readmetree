@@ -4,6 +4,12 @@ exclude:
 force_include: []
 collapse_siblings: []
 entries:
+  .github/:
+    description: ""
+  .github/workflows/:
+    description: ""
+  .github/workflows/tests.yml:
+    description: "GitHub Actions: run pytest on push/PR to main (Python 3.9 and 3.12)"
   src/:
     description: ""
   src/readmetree/:
@@ -62,6 +68,8 @@ entries:
     description: "git-tracked-files filtering, worktree .git-as-file, untracking keeps the description"
   tests/test_scanner_pruning.py:
     description: "empty directories (including cascaded-empty ones) are dropped from the tree"
+  LICENSE:
+    description: "MIT license"
   pyproject.toml:
     description: "package metadata, dependencies, the readmetree console-script entry point"
   README.ru.md:
