@@ -20,45 +20,97 @@ python -m venv .venv
 
 ## Usage
 
-Run from your project's root (or pass `--root`/`-r`):
+### Quick start
 
 ```
+cd your-project
 readmetree generate
 ```
 
-`generate` and `edit` also work as `gen`/`g` and `e`; most flags have a
-short form too (`-n` `--dry-run`, `-c` `--check`, `-r` `--root`, `-f`
-`--force`, `-v` `--verbose`) — see `readmetree <command> -h`.
+That's it for the common case: it scans, asks about anything new, and
+writes/updates the tree in `README.md`. Everything below is the detailed
+reference for the two commands and the situations you'll actually hit.
 
-This scans the project, applies `.gitignore`, asks (interactively) for a
-one-line description of every file/folder it hasn't seen before, and
-writes the resulting tree into `README.md` between a pair of HTML comment
-markers (see the bottom of this file for what they look like).
+### Commands at a glance
 
-If those markers aren't in `README.md` yet, the tree is appended to the
-end of the file; if `README.md` doesn't exist, it's created. Descriptions
-you already gave are reused as-is on the next run — only new or renamed
-paths are asked about again. A description is only ever deleted from the
-config when its path is actually gone from disk; a path that's merely
-hidden from the tree (see below) keeps its description in case it comes
-back.
+| Command | Aliases | Does |
+|---|---|---|
+| `readmetree generate` | `gen`, `g` | Full scan → diff against `.readmetree.yml` → ask about new/changed paths → update `README.md` |
+| `readmetree edit <path>` | `e` | Change one path's description, no full rescan or prompting for anything else |
 
-When asked for a description: Enter records an empty one (fine for plain
-folders like `src/` — you won't be asked again); `?` skips the path for
-now and asks again on the next run.
+---
 
-To fix a single description without rescanning the whole project:
+### `readmetree generate`
+
+1. Finds the project root (nearest ancestor with `.git`, unless `--root` is given).
+2. Scans the file tree, applying `.gitignore` and the git-tracked-files filter (see [What shows up in the tree](#what-shows-up-in-the-tree)).
+3. Diffs the scan against `.readmetree.yml`:
+   - **new** paths → prompted for a description (unless `--check`/`--dry-run`).
+   - **paths gone from disk** → description removed from the config, with a warning.
+   - **paths merely hidden this run** (newly untracked/`.gitignore`d/now-empty) → description is *kept*, in case the path comes back.
+4. Writes the updated `.readmetree.yml`.
+5. Renders the tree and splices it into `README.md` between `tree:start`/`tree:end` markers — appended to the end of the file if the markers aren't there yet, or the file is created if it doesn't exist at all.
+
+When asked for a description: **Enter** records an empty one (fine for a
+plain folder like `src/` — you won't be asked again); **`?`** skips the
+path for now and asks again next run. **Ctrl+C** saves whatever you'd
+already answered and leaves `README.md` untouched.
+
+#### Flags
+
+| Flag | Short | Meaning |
+|---|---|---|
+| `--dry-run` | `-n` | Show what would change; write nothing. Always exits `0` — for a human to glance at. |
+| `--check` | `-c` | Non-interactive; write nothing; exit `1` if a real run would change anything. For CI/pre-commit — see below. |
+| `--config PATH` | | Config file (default: `<root>/.readmetree.yml`) |
+| `--readme PATH` | | README file (default: `<root>/README.md`) |
+| `--root PATH` | `-r` | Project root (default: nearest ancestor with `.git`, else cwd) |
+| `--verbose` | `-v` | Also print which paths got filtered out and why |
+
+#### Examples
+
+```
+readmetree generate              # the normal case
+readmetree g -n                  # preview what would change, write nothing
+readmetree gen --root ../other-project
+readmetree generate -v           # see exactly what got filtered and why
+```
+
+---
+
+### `readmetree edit <path>`
+
+Fixes one description without touching anything else — no rescan, no
+prompting for other paths.
 
 ```
 readmetree edit src/core/Vec3.h
 ```
 
-Also accepts the merged pair form (`src/core/Vec3.h/.cpp`) or the
-secondary file's own path (`src/core/Vec3.cpp`).
+`<path>` accepts:
+- a plain file or folder path (folder trailing slash optional — `src/core` and `src/core/` both work)
+- the merged pair display form (`src/core/Vec3.h/.cpp`)
+- either half of a merged pair on its own (`src/core/Vec3.cpp` finds the same entry as `src/core/Vec3.h`)
 
-Useful flags: `--dry-run` (show what would change, write nothing),
-`-v`/`--verbose`, `--config`/`--readme`/`--root` to override the default
-locations.
+#### Flags
+
+| Flag | Short | Meaning |
+|---|---|---|
+| `--config PATH` | | Config file (default: `<root>/.readmetree.yml`) |
+| `--readme PATH` | | README file (default: `<root>/README.md`) |
+| `--root PATH` | `-r` | Project root (default: nearest ancestor with `.git`, else cwd) |
+| `--force` | `-f` | Edit even if the path doesn't currently exist on disk / isn't in the config yet |
+| `--verbose` | `-v` | Also print which paths got filtered out and why |
+
+#### Examples
+
+```
+readmetree edit src/render/Camera.h
+readmetree e src/render/Camera.h/.cpp   # same entry, pair display form
+readmetree edit --force some/future/path.py   # pre-seed a description
+```
+
+---
 
 ### CI / pre-commit: `--check`
 
@@ -68,6 +120,10 @@ non-interactive, writes nothing, and exits `1` if a real `generate` run
 would change README.md or `.readmetree.yml` (new undescribed paths,
 descriptions edited by hand but not yet regenerated, paths added/removed,
 ...).
+
+```
+readmetree generate --check   # exit 0 = up to date, exit 1 = stale
+```
 
 To run it automatically before every commit via
 [pre-commit](https://pre-commit.com), add to your project's
