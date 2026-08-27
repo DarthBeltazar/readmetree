@@ -93,11 +93,11 @@ _DONE = "\0done"  # sentinel value for the "(done)" choice; never a real config_
 
 
 def browse_select(rows: list[tuple[str, str]]) -> str | None:
-    """Arrow-key menu over rendered tree lines (↑/↓ to move, Enter to
-    pick) — `rows` is (config_key, rendered_line) pairs, in tree order,
-    exactly as they'll appear in README.md. Returns the chosen config_key,
-    or None if the user picked "(done)" / cancelled (Ctrl+C, or no usable
-    console — falls back to a plain numbered list in that case).
+    """Arrow-key menu over rendered tree lines plus any removed
+    (`ignore: true`) paths, marked "(hidden)" (↑/↓ to move, Enter to pick)
+    — `rows` is (config_key, display_line) pairs. Returns the chosen
+    config_key, or None if the user picked "(done)" / cancelled (Ctrl+C, or
+    no usable console — falls back to a plain numbered list in that case).
     """
     choices = [questionary.Choice(title=line, value=key) for key, line in rows]
     choices.append(questionary.Separator())
@@ -105,7 +105,7 @@ def browse_select(rows: list[tuple[str, str]]) -> str | None:
 
     try:
         result = questionary.select(
-            "Pick a path to edit (↑/↓, Enter to select, Ctrl+C to quit):",
+            "Pick a path (↑/↓, Enter to select, Ctrl+C to quit):",
             choices=choices,
         ).ask()
     except KeyboardInterrupt:
@@ -164,6 +164,61 @@ def _browse_select_fallback(rows: list[tuple[str, str]]) -> str | None:
     if idx <= 0 or idx > len(rows):
         return None
     return rows[idx - 1][0]
+
+
+_BACK = "\0back"
+
+
+def browse_action_menu(label: str, hidden: bool) -> str | None:
+    """Small action menu for one path picked in the browse list — 'edit'
+    and 'remove' for a normally-visible path, 'restore' for one already
+    hidden (ignore: true). Returns None on "(back)"/Ctrl+C: nothing
+    changes, caller just returns to the list.
+    """
+    choices: list[questionary.Choice] = []
+    if hidden:
+        choices.append(questionary.Choice(title="Restore to tree", value="restore"))
+    else:
+        choices.append(questionary.Choice(title="Edit description", value="edit"))
+        choices.append(questionary.Choice(title="Remove from tree", value="remove"))
+    choices.append(questionary.Separator())
+    choices.append(questionary.Choice(title="(back)", value=_BACK))
+
+    console.print(f"Selected: [{_PATH_STYLE}]{escape(label)}[/{_PATH_STYLE}]")
+    try:
+        result = questionary.select(
+            "Choose an action (↑/↓, Enter to select, Ctrl+C to go back):",
+            choices=choices,
+        ).ask()
+    except KeyboardInterrupt:
+        return None
+    except Exception:
+        return _browse_action_menu_fallback(hidden)
+
+    return None if result in (None, _BACK) else result
+
+
+def _browse_action_menu_fallback(hidden: bool) -> str | None:
+    """Plain numbered fallback for the action menu, mirroring
+    _browse_select_fallback for consoles questionary.select can't attach to.
+    """
+    if hidden:
+        options = [("restore", "Restore to tree")]
+    else:
+        options = [("edit", "Edit description"), ("remove", "Remove from tree")]
+    for i, (_, text) in enumerate(options, start=1):
+        console.print(f"[cyan]{i:>3}.[/cyan] {text}")
+    console.print("[cyan]  0.[/cyan] (back)")
+    try:
+        raw = input("Number: ").strip()
+    except (EOFError, KeyboardInterrupt):
+        return None
+    if not raw.isdigit():
+        return None
+    idx = int(raw)
+    if idx <= 0 or idx > len(options):
+        return None
+    return options[idx - 1][0]
 
 
 def prompt_for_edit(label: str, current: str | None) -> str | None:

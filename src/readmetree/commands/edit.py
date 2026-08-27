@@ -2,8 +2,9 @@
 full rescan/interactive pass, then re-render README.md.
 
 `readmetree edit` with no path launches an arrow-key browser over the
-current tree instead: pick any path, edit its description, land back on
-the list, repeat until you're done.
+current tree instead: pick any path, then edit its description, remove it
+from the tree, or (for an already-removed path, shown as "(hidden)")
+restore it — land back on the (now-updated) list, repeat until you're done.
 """
 
 from __future__ import annotations
@@ -12,7 +13,7 @@ import argparse
 from pathlib import Path
 
 from .. import prompt, readme_io, scanner
-from ..config import ProjectConfig
+from ..config import ConfigEntry, ProjectConfig
 from ..defaults import CONFIG_FILENAME, README_FILENAME
 from ..render import iter_rendered_lines, render_tree
 from ..rootfind import find_root
@@ -80,12 +81,18 @@ def run(args: argparse.Namespace) -> int:
 def _browse(
     root: Path, config: ProjectConfig, config_path: Path, readme_path: Path, verbose: bool
 ) -> int:
-    """Arrow-key loop: show the tree exactly as it will render, let the
-    user pick a line, edit its description, save, and re-render — then
-    come back to the (now-updated) list until they pick "(done)" or quit.
+    """Arrow-key loop: show the tree exactly as it will render (plus any
+    removed paths, marked "(hidden)"), let the user pick a line, then
+    choose to edit its description, remove it from the tree, or restore a
+    hidden one — save, re-render, and land back on the (now-updated) list
+    until they pick "(done)" or quit.
     """
-    dir_node = scan_project(root, config, readme_rel_path=rel_path(root, readme_path), verbose=verbose)
-    scanned_keys = scanner.iter_config_keys(dir_node)
+
+    def rescan() -> tuple:
+        node = scan_project(root, config, readme_rel_path=rel_path(root, readme_path), verbose=verbose)
+        return node, scanner.iter_config_keys(node)
+
+    dir_node, scanned_keys = rescan()
 
     while True:
         rows = iter_rendered_lines(dir_node, build_comments(config))
@@ -94,21 +101,51 @@ def _browse(
         # collapse_siblings in the config, not from a browsable path.
         editable_rows = [(key, line) for key, line in rows if not key.startswith("collapse:")]
 
-        if not editable_rows:
+        hidden_keys = {key for key, entry in config.entries.items() if entry.ignore}
+        hidden_rows = []
+        for key in sorted(hidden_keys):
+            desc = config.entries[key].description
+            label = f"(hidden) {key}" + (f"  # {desc}" if desc else "")
+            hidden_rows.append((key, label))
+
+        all_rows = editable_rows + hidden_rows
+        if not all_rows:
             prompt.console.print("[yellow]Nothing to browse — the tree is empty.[/yellow]")
             return 0
 
-        chosen_key = prompt.browse_select(editable_rows)
+        chosen_key = prompt.browse_select(all_rows)
         if chosen_key is None:
             prompt.console.print("[dim]Done.[/dim]")
             return 0
 
-        current = config.get_description(chosen_key)
-        new_desc = prompt.prompt_for_edit(chosen_key, current)
-        if new_desc is None:
-            continue  # cancelled this one edit; back to the list
+        action = prompt.browse_action_menu(chosen_key, hidden=chosen_key in hidden_keys)
+        if action is None:
+            continue  # back to the list; nothing changed
 
-        config.set_description(chosen_key, new_desc)
+        if action == "edit":
+            current = config.get_description(chosen_key)
+            new_desc = prompt.prompt_for_edit(chosen_key, current)
+            if new_desc is None:
+                continue  # cancelled this one edit; back to the list
+            config.set_description(chosen_key, new_desc)
+            status = f"Description for '{chosen_key}' updated."
+        elif action == "remove":
+            entry = config.entries.get(chosen_key)
+            if entry is None:
+                entry = ConfigEntry()
+                config.entries[chosen_key] = entry
+            entry.ignore = True
+            status = f"Removed '{chosen_key}' from the tree."
+        else:  # "restore"
+            entry = config.entries.get(chosen_key)
+            if entry is not None:
+                entry.ignore = False
+            status = f"Restored '{chosen_key}' to the tree."
+
+        # remove/restore change which paths the scan even sees; edit
+        # doesn't, but rescanning unconditionally keeps this one code path
+        # instead of tracking which actions need it.
+        dir_node, scanned_keys = rescan()
         config.save(config_path, entry_order=scanned_keys)
 
         tree_text = render_tree(dir_node, build_comments(config))
@@ -118,7 +155,7 @@ def _browse(
             prompt.print_error(str(e))
             return 1
 
-        prompt.console.print(f"[green]Description for '{chosen_key}' updated.[/green]")
+        prompt.console.print(f"[green]{status}[/green]")
 
 
 def register(subparsers: "argparse._SubParsersAction") -> None:

@@ -155,13 +155,14 @@ def test_edit_directory_without_trailing_slash(example_project: Path, monkeypatc
 
 def test_browse_mode_edits_two_paths_then_exits(example_project: Path, monkeypatch):
     """`readmetree edit` with no path: pick two entries in a row (via the
-    mocked arrow-key selector), edit both, then hit "done".
+    mocked arrow-key selector), choose "edit" for both, then hit "done".
     """
     monkeypatch.setattr(prompt, "prompt_for_new_paths", lambda items: {})
     _run(["generate", "--root", str(example_project)])
 
     picks = iter(["src/core/Vec3.h", "background.exr", None])
     monkeypatch.setattr(prompt, "browse_select", lambda rows: next(picks))
+    monkeypatch.setattr(prompt, "browse_action_menu", lambda label, hidden: "edit")
 
     answers = iter(["via browse: vec3", "via browse: exr"])
     monkeypatch.setattr(prompt, "prompt_for_edit", lambda label, current: next(answers))
@@ -184,6 +185,7 @@ def test_browse_mode_cancel_one_edit_keeps_looping(example_project: Path, monkey
 
     picks = iter(["background.exr", "background.exr", None])
     monkeypatch.setattr(prompt, "browse_select", lambda rows: next(picks))
+    monkeypatch.setattr(prompt, "browse_action_menu", lambda label, hidden: "edit")
 
     # First edit of background.exr is cancelled (None); second succeeds.
     answers = iter([None, "second try"])
@@ -194,6 +196,74 @@ def test_browse_mode_cancel_one_edit_keeps_looping(example_project: Path, monkey
 
     config = ProjectConfig.load(example_project / ".readmetree.yml")
     assert config.get_description("background.exr") == "second try"
+
+
+def test_browse_mode_cancel_action_menu_keeps_looping(example_project: Path, monkeypatch):
+    """Ctrl+C/"(back)" at the action menu (browse_action_menu -> None)
+    goes back to the list without touching anything, same as cancelling
+    an edit.
+    """
+    monkeypatch.setattr(prompt, "prompt_for_new_paths", lambda items: {})
+    _run(["generate", "--root", str(example_project)])
+    original_readme = (example_project / "README.md").read_text(encoding="utf-8")
+
+    picks = iter(["background.exr", None])
+    monkeypatch.setattr(prompt, "browse_select", lambda rows: next(picks))
+    monkeypatch.setattr(prompt, "browse_action_menu", lambda label, hidden: None)
+
+    def fail_if_called(label, current):
+        raise AssertionError("should not prompt for a description")
+
+    monkeypatch.setattr(prompt, "prompt_for_edit", fail_if_called)
+
+    rc = _run(["edit", "--root", str(example_project)])
+    assert rc == 0
+    assert (example_project / "README.md").read_text(encoding="utf-8") == original_readme
+
+
+def test_browse_mode_remove_hides_then_restore_brings_back(example_project: Path, monkeypatch):
+    """Pick a path, choose "remove" -> it's gone from the tree and shows
+    up as "(hidden)" in the next pass; pick it again, choose "restore" ->
+    it's back, byte-identical to before.
+    """
+    monkeypatch.setattr(prompt, "prompt_for_new_paths", lambda items: {})
+    _run(["generate", "--root", str(example_project)])
+    original_readme = (example_project / "README.md").read_text(encoding="utf-8")
+
+    picks = iter(["src/core/Vec3.h", "src/core/Vec3.h", None])
+    monkeypatch.setattr(prompt, "browse_select", lambda rows: next(picks))
+    actions = iter(["remove", "restore"])
+    monkeypatch.setattr(prompt, "browse_action_menu", lambda label, hidden: next(actions))
+
+    rc = _run(["edit", "--root", str(example_project)])
+    assert rc == 0
+
+    config = ProjectConfig.load(example_project / ".readmetree.yml")
+    assert config.entries["src/core/Vec3.h"].ignore is False
+    readme_after = (example_project / "README.md").read_text(encoding="utf-8")
+    assert readme_after == original_readme
+
+
+def test_browse_mode_lists_hidden_paths_for_restore(example_project: Path, monkeypatch):
+    """A path removed in an earlier pass shows up in the browse list
+    marked "(hidden)" so it can be picked and restored."""
+    monkeypatch.setattr(prompt, "prompt_for_new_paths", lambda items: {})
+    _run(["generate", "--root", str(example_project)])
+    _run(["remove", "background.exr", "--root", str(example_project)])
+
+    captured_rows = {}
+
+    def fake_browse_select(rows):
+        captured_rows["rows"] = rows
+        return None
+
+    monkeypatch.setattr(prompt, "browse_select", fake_browse_select)
+
+    rc = _run(["edit", "--root", str(example_project)])
+    assert rc == 0
+    rows = dict(captured_rows["rows"])
+    assert "background.exr" in rows
+    assert rows["background.exr"].startswith("(hidden) background.exr")
 
 
 def test_browse_mode_rows_exclude_collapsed_groups(example_project: Path, monkeypatch):

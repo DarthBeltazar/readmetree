@@ -94,11 +94,15 @@ readmetree edit src/core/Vec3.h
 - either half of a merged pair on its own (`src/core/Vec3.cpp` finds the same entry as `src/core/Vec3.h`)
 
 **No path → arrow-key browser.** `readmetree edit` on its own shows the
-tree exactly as it renders in `README.md`; move with ↑/↓, Enter to edit
-that line's description, which saves and re-renders immediately, then
-you're back on the (now-updated) list — pick another line or select
-"(done)" to stop. If the terminal can't do arrow-key menus (piped input,
-some embedded consoles), it falls back to a plain numbered list.
+tree exactly as it renders in `README.md` (plus any already-removed paths,
+listed at the end marked "(hidden)"); move with ↑/↓, Enter to pick a line,
+then choose an action: **Edit description**, **Remove from tree** (same as
+`readmetree remove` — sets `ignore: true`, keeps the description), or for a
+"(hidden)" line, **Restore to tree**. Each action saves and re-renders
+immediately, then you're back on the (now-updated) list — pick another
+line or select "(done)" to stop. If the terminal can't do arrow-key menus
+(piped input, some embedded consoles), it falls back to a plain numbered
+list at both steps.
 
 #### Flags
 
@@ -136,7 +140,9 @@ readmetree rm src/core/Vec3.h --restore   # bring it back
 
 `<path>` accepts the same forms as `edit` (plain path, folder, either half
 of a merged pair). Removing a directory hides its whole subtree; removing
-one half of a header/source pair hides both halves.
+one half of a header/source pair hides both halves. The same "Remove from
+tree" / "Restore to tree" actions are also available from `readmetree
+edit`'s arrow-key browser (see above) — use whichever entry point is handier.
 
 #### Flags
 
@@ -234,7 +240,7 @@ directory; pass `--root` explicitly if that's not what you want.
 │       ├── commands/     # generate/edit command orchestration
 │       │   ├── __init__.py
 │       │   ├── _shared.py   # shared plumbing: ignore-aware scan (honors per-entry ignore: true), comment map, path-arg normalization
-│       │   ├── edit.py      # readmetree edit <path>: point-edit one description; no path launches an arrow-key browser
+│       │   ├── edit.py      # readmetree edit <path>: point-edit one description; no path launches an arrow-key browser (edit/remove/restore)
 │       │   ├── generate.py  # readmetree generate: full scan, diff against config, prompt for new paths, update README.md; --check for CI
 │       │   └── remove.py    # readmetree remove <path> / rm: hide a path from the tree (ignore: true) without deleting it; --restore undoes it
 │       ├── __init__.py   # package version
@@ -244,7 +250,7 @@ directory; pass `--root` explicitly if that's not what you want.
 │       ├── ignore.py     # path filtering: .gitignore, always-excluded paths, and git-tracked-files-only
 │       ├── model.py      # tree dataclasses: FileNode, DirNode, CollapsedGroupNode
 │       ├── pairing.py    # merges Vec3.h + Vec3.cpp into one Vec3.h/.cpp tree line
-│       ├── prompt.py     # interactive prompting (questionary), the arrow-key browse menu, and console output (rich)
+│       ├── prompt.py     # interactive prompting (questionary): path/action browse menus, description input, console output (rich)
 │       ├── readme_io.py  # finds the tree:start/tree:end markers and splices the rendered tree into README.md
 │       ├── render.py     # pure DirNode-tree -> ASCII tree-art renderer, comment column aligned per nesting depth
 │       ├── rootfind.py   # locates the project root (nearest ancestor with .git, else cwd)
