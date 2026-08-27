@@ -64,5 +64,7 @@ entries:
     description: "empty directories (including cascaded-empty ones) are dropped from the tree"
   pyproject.toml:
     description: "package metadata, dependencies, the readmetree console-script entry point"
+  README.ru.md:
+    description: "hand-translated Russian README (may lag behind README.md)"
   requirements.txt:
     description: "dependencies for local development (mirrors pyproject.toml, plus pytest)"

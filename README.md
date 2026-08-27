@@ -1,5 +1,7 @@
 # readmeTreeAutomizer
 
+*[Русская версия](README.ru.md)*
+
 A CLI tool that scans your project's file tree and keeps an annotated,
 `tree`-style block up to date inside `README.md` — so you edit one
 description per file/folder once, instead of hand-aligning ASCII art every
@@ -121,6 +123,7 @@ directory; pass `--root` explicitly if that's not what you want.
 │   ├── test_scanner_ignore.py     # git-tracked-files filtering, worktree .git-as-file, untracking keeps the description
 │   └── test_scanner_pruning.py    # empty directories (including cascaded-empty ones) are dropped from the tree
 ├── pyproject.toml    # package metadata, dependencies, the readmetree console-script entry point
+├── README.ru.md      # hand-translated Russian README (may lag behind README.md)
 └── requirements.txt  # dependencies for local development (mirrors pyproject.toml, plus pytest)
 ```
 <!-- tree:end -->
