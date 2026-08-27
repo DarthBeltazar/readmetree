@@ -37,6 +37,7 @@ reference for the two commands and the situations you'll actually hit.
 |---|---|---|
 | `readmetree generate` | `gen`, `g` | Full scan → diff against `.readmetree.yml` → ask about new/changed paths → update `README.md` |
 | `readmetree edit <path>` | `e` | Change one path's description, no full rescan or prompting for anything else |
+| `readmetree remove <path>` | `rm` | Hide a path from the tree (`ignore: true`) without touching it on disk; `--restore` undoes it |
 
 ---
 
@@ -120,6 +121,44 @@ readmetree edit                          # arrow-key browser, no target path
 
 ---
 
+### `readmetree remove <path>`
+
+For a path `generate` would keep showing (it's real, tracked, not
+`.gitignore`d) that you just don't want documented — different from a path
+that's actually gone from disk, which `generate` already drops from the
+config on its own. `remove` sets `ignore: true` on the entry; the file
+itself is never touched, and its description is kept in case you restore it.
+
+```
+readmetree remove src/core/Vec3.h
+readmetree rm src/core/Vec3.h --restore   # bring it back
+```
+
+`<path>` accepts the same forms as `edit` (plain path, folder, either half
+of a merged pair). Removing a directory hides its whole subtree; removing
+one half of a header/source pair hides both halves.
+
+#### Flags
+
+| Flag | Short | Meaning |
+|---|---|---|
+| `--restore` | `-u` | Undo a previous `remove` — show the path in the tree again |
+| `--force` | `-f` | Remove even if the path doesn't currently exist on disk / isn't in the config yet |
+| `--config PATH` | | Config file (default: `<root>/.readmetree.yml`) |
+| `--readme PATH` | | README file (default: `<root>/README.md`) |
+| `--root PATH` | `-r` | Project root (default: nearest ancestor with `.git`, else cwd) |
+| `--verbose` | `-v` | Also print which paths got filtered out and why |
+
+#### Examples
+
+```
+readmetree remove build/generated_stub.cpp
+readmetree rm build/generated_stub.cpp -u   # restore it
+readmetree remove src/vendor --force        # pre-hide a path that doesn't exist yet
+```
+
+---
+
 ### CI / pre-commit: `--check`
 
 `--dry-run` always exits `0` — it's for a human to glance at, not for a
@@ -151,7 +190,8 @@ Path → description, next to your project. Edit it by hand if you like —
 it's plain YAML. A few extra keys are available:
 
 - `ignore: true` on an entry — hide a path `.gitignore` doesn't cover,
-  without deleting its description.
+  without deleting its description. Normally you don't hand-edit this:
+  `readmetree remove <path>` sets it, and `--restore` clears it.
 - `force_include` — show a `.gitignore`d path anyway, as one collapsed
   line without listing its contents (`collapse: true`, the default) — e.g.
   generated frame sequences you still want documented. `collapse: false`
@@ -193,9 +233,10 @@ directory; pass `--root` explicitly if that's not what you want.
 │   └── readmetree/
 │       ├── commands/     # generate/edit command orchestration
 │       │   ├── __init__.py
-│       │   ├── _shared.py   # shared plumbing: build the ignore matcher + scan the tree, build the comment map
+│       │   ├── _shared.py   # shared plumbing: ignore-aware scan (honors per-entry ignore: true), comment map, path-arg normalization
 │       │   ├── edit.py      # readmetree edit <path>: point-edit one description; no path launches an arrow-key browser
-│       │   └── generate.py  # readmetree generate: full scan, diff against config, prompt for new paths, update README.md; --check for CI
+│       │   ├── generate.py  # readmetree generate: full scan, diff against config, prompt for new paths, update README.md; --check for CI
+│       │   └── remove.py    # readmetree remove <path> / rm: hide a path from the tree (ignore: true) without deleting it; --restore undoes it
 │       ├── __init__.py   # package version
 │       ├── cli.py        # argparse entry point; forces UTF-8 stdout/stderr for legacy-codepage Windows consoles
 │       ├── config.py     # .readmetree.yml model: load/save/serialize (ruamel.yaml round-trip) and diff against a scan
@@ -213,9 +254,11 @@ directory; pass `--root` explicitly if that's not what you want.
 │   ├── test_check.py              # generate --check: non-interactive, writes nothing, correct exit code
 │   ├── test_config_diff.py        # .readmetree.yml load/save round-trip and new/removed/kept diffing
 │   ├── test_e2e_generate.py       # full CLI runs (generate/edit) against the example project fixture
+│   ├── test_manual_ignore.py      # ignore: true on a config entry actually excludes the path (and its pair) from the scan
 │   ├── test_pairing.py            # header/source pair merging rules
 │   ├── test_prompt_fallback.py    # plain input() fallback when questionary can't attach to a console
 │   ├── test_readme_markers.py     # tree:start/tree:end marker splicing, including CRLF and error cases
+│   ├── test_remove_command.py     # readmetree remove/rm/--restore: hide/restore a path, pair-awareness, force-preseeding, errors
 │   ├── test_render_idempotent.py  # ASCII tree rendering, comment-column alignment, idempotency
 │   ├── test_scanner_ignore.py     # git-tracked-files filtering, worktree .git-as-file, untracking keeps the description
 │   └── test_scanner_pruning.py    # empty directories (including cascaded-empty ones) are dropped from the tree

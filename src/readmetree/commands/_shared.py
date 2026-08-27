@@ -1,7 +1,8 @@
-"""Helpers shared by the `generate` and `edit` commands."""
+"""Helpers shared by the `generate`, `edit`, and `remove` commands."""
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from .. import prompt
@@ -43,6 +44,14 @@ def scan_project(
     extra_exclude = list(config.exclude)
     if readme_rel_path:
         extra_exclude.append(readme_rel_path)
+    # A per-path `ignore: true` entry hides that exact path (and, for a
+    # merged header/source pair, its other half too) from the tree without
+    # touching its description — this is what `readmetree remove` sets.
+    for key, entry in config.entries.items():
+        if entry.ignore:
+            extra_exclude.append(key)
+            if entry.pair_with:
+                extra_exclude.append(entry.pair_with)
     matcher = IgnoreMatcher(
         root=root,
         extra_exclude=extra_exclude,
@@ -61,3 +70,46 @@ def rel_path(root: Path, path: Path) -> str | None:
         return path.resolve().relative_to(root).as_posix()
     except ValueError:
         return None
+
+
+def normalize_path_arg(raw: str, config: ProjectConfig, root: Path) -> str:
+    """Turn a user-typed path into a config key.
+
+    Accepts a plain relative path, a directory (trailing slash optional —
+    detected from disk if the user left it off), or the merged display form
+    of a header/source pair (e.g. "src/core/Vec3.h/.cpp" or just
+    "src/core/Vec3.h" / "src/core/Vec3.cpp").
+    """
+    normalized = raw.replace(os.sep, "/").strip()
+    is_dir_hint = normalized.endswith("/")
+    normalized = normalized.rstrip("/")
+
+    # "path/Vec3.h/.cpp" -> the last segment is a bare extension (starts
+    # with "." and has no other dot); drop it, the primary file is the key.
+    parts = normalized.split("/")
+    if len(parts) >= 2 and parts[-1].startswith(".") and parts[-1].count(".") == 1:
+        normalized = "/".join(parts[:-1])
+        is_dir_hint = False
+
+    if is_dir_hint:
+        return normalized + "/"
+
+    if normalized in config.entries:
+        return normalized
+
+    if (normalized + "/") in config.entries:
+        return normalized + "/"
+
+    # No trailing slash typed, not a known file key — if it's actually a
+    # directory on disk, key it as one, or `set_description` would create a
+    # bogus no-slash entry that render() never looks up.
+    if (root / normalized).is_dir():
+        return normalized + "/"
+
+    # Maybe the user passed the *secondary* half of a pair (e.g. Vec3.cpp);
+    # look up the primary key via pair_with.
+    for key, entry in config.entries.items():
+        if entry.pair_with == normalized:
+            return key
+
+    return normalized

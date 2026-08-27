@@ -4,7 +4,7 @@ import argparse
 import sys
 
 from . import __version__
-from .commands import edit, generate
+from .commands import edit, generate, remove
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -16,6 +16,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
     generate.register(subparsers)
     edit.register(subparsers)
+    remove.register(subparsers)
     return parser
 
 

@@ -9,7 +9,6 @@ the list, repeat until you're done.
 from __future__ import annotations
 
 import argparse
-import os
 from pathlib import Path
 
 from .. import prompt, readme_io, scanner
@@ -17,7 +16,13 @@ from ..config import ProjectConfig
 from ..defaults import CONFIG_FILENAME, README_FILENAME
 from ..render import iter_rendered_lines, render_tree
 from ..rootfind import find_root
-from ._shared import announce_root_if_surprising, build_comments, rel_path, scan_project
+from ._shared import (
+    announce_root_if_surprising,
+    build_comments,
+    normalize_path_arg,
+    rel_path,
+    scan_project,
+)
 
 
 def run(args: argparse.Namespace) -> int:
@@ -31,7 +36,7 @@ def run(args: argparse.Namespace) -> int:
     if args.path is None:
         return _browse(root, config, config_path, readme_path, args.verbose)
 
-    config_key = _normalize_arg(args.path, config, root)
+    config_key = normalize_path_arg(args.path, config, root)
 
     exists_on_disk = (root / config_key.rstrip("/")).exists() or (root / config_key).exists()
     known_in_config = config_key in config.entries
@@ -114,49 +119,6 @@ def _browse(
             return 1
 
         prompt.console.print(f"[green]Description for '{chosen_key}' updated.[/green]")
-
-
-def _normalize_arg(raw: str, config: ProjectConfig, root: Path) -> str:
-    """Turn a user-typed path into a config key.
-
-    Accepts a plain relative path, a directory (trailing slash optional —
-    detected from disk if the user left it off), or the merged display form
-    of a header/source pair (e.g. "src/core/Vec3.h/.cpp" or just
-    "src/core/Vec3.h" / "src/core/Vec3.cpp").
-    """
-    normalized = raw.replace(os.sep, "/").strip()
-    is_dir_hint = normalized.endswith("/")
-    normalized = normalized.rstrip("/")
-
-    # "path/Vec3.h/.cpp" -> the last segment is a bare extension (starts
-    # with "." and has no other dot); drop it, the primary file is the key.
-    parts = normalized.split("/")
-    if len(parts) >= 2 and parts[-1].startswith(".") and parts[-1].count(".") == 1:
-        normalized = "/".join(parts[:-1])
-        is_dir_hint = False
-
-    if is_dir_hint:
-        return normalized + "/"
-
-    if normalized in config.entries:
-        return normalized
-
-    if (normalized + "/") in config.entries:
-        return normalized + "/"
-
-    # No trailing slash typed, not a known file key — if it's actually a
-    # directory on disk, key it as one, or `set_description` would create a
-    # bogus no-slash entry that render() never looks up.
-    if (root / normalized).is_dir():
-        return normalized + "/"
-
-    # Maybe the user passed the *secondary* half of a pair (e.g. Vec3.cpp);
-    # look up the primary key via pair_with.
-    for key, entry in config.entries.items():
-        if entry.pair_with == normalized:
-            return key
-
-    return normalized
 
 
 def register(subparsers: "argparse._SubParsersAction") -> None:

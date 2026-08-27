@@ -19,11 +19,13 @@ entries:
   src/readmetree/commands/__init__.py:
     description: ""
   src/readmetree/commands/_shared.py:
-    description: "shared plumbing: build the ignore matcher + scan the tree, build the comment map"
+    description: "shared plumbing: ignore-aware scan (honors per-entry ignore: true), comment map, path-arg normalization"
   src/readmetree/commands/edit.py:
     description: "readmetree edit <path>: point-edit one description; no path launches an arrow-key browser"
   src/readmetree/commands/generate.py:
     description: "readmetree generate: full scan, diff against config, prompt for new paths, update README.md; --check for CI"
+  src/readmetree/commands/remove.py:
+    description: "readmetree remove <path> / rm: hide a path from the tree (ignore: true) without deleting it; --restore undoes it"
   src/readmetree/__init__.py:
     description: "package version"
   src/readmetree/cli.py:
@@ -58,12 +60,16 @@ entries:
     description: ".readmetree.yml load/save round-trip and new/removed/kept diffing"
   tests/test_e2e_generate.py:
     description: "full CLI runs (generate/edit) against the example project fixture"
+  tests/test_manual_ignore.py:
+    description: "ignore: true on a config entry actually excludes the path (and its pair) from the scan"
   tests/test_pairing.py:
     description: "header/source pair merging rules"
   tests/test_prompt_fallback.py:
     description: "plain input() fallback when questionary can't attach to a console"
   tests/test_readme_markers.py:
     description: "tree:start/tree:end marker splicing, including CRLF and error cases"
+  tests/test_remove_command.py:
+    description: "readmetree remove/rm/--restore: hide/restore a path, pair-awareness, force-preseeding, errors"
   tests/test_render_idempotent.py:
     description: "ASCII tree rendering, comment-column alignment, idempotency"
   tests/test_scanner_ignore.py:
