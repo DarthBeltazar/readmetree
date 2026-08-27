@@ -20,11 +20,15 @@ python -m venv .venv
 
 ## Usage
 
-Run from your project's root (or pass `--root`):
+Run from your project's root (or pass `--root`/`-r`):
 
 ```
 readmetree generate
 ```
+
+`generate` and `edit` also work as `gen`/`g` and `e`; most flags have a
+short form too (`-n` `--dry-run`, `-c` `--check`, `-r` `--root`, `-f`
+`--force`, `-v` `--verbose`) — see `readmetree <command> -h`.
 
 This scans the project, applies `.gitignore`, asks (interactively) for a
 one-line description of every file/folder it hasn't seen before, and

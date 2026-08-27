@@ -151,15 +151,22 @@ def _check(
 
 
 def register(subparsers: "argparse._SubParsersAction") -> None:
-    p = subparsers.add_parser("generate", help="Scan the project and update README.md")
-    p.add_argument("--dry-run", action="store_true", help="Show what would change, write nothing")
+    p = subparsers.add_parser(
+        "generate",
+        aliases=["gen", "g"],
+        help="Scan the project and update README.md",
+    )
     p.add_argument(
+        "-n", "--dry-run", action="store_true", help="Show what would change, write nothing"
+    )
+    p.add_argument(
+        "-c",
         "--check",
         action="store_true",
         help="Non-interactive: exit 1 if README.md/config are out of date, write nothing (for CI)",
     )
     p.add_argument("--config", help="Path to the config file (default: <root>/.readmetree.yml)")
     p.add_argument("--readme", help="Path to README.md (default: <root>/README.md)")
-    p.add_argument("--root", help="Project root (default: nearest ancestor with .git, else cwd)")
+    p.add_argument("-r", "--root", help="Project root (default: nearest ancestor with .git, else cwd)")
     p.add_argument("-v", "--verbose", action="store_true", help="Print filtered-out paths")
     p.set_defaults(func=run)

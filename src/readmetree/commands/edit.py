@@ -108,11 +108,15 @@ def _normalize_arg(raw: str, config: ProjectConfig, root: Path) -> str:
 
 
 def register(subparsers: "argparse._SubParsersAction") -> None:
-    p = subparsers.add_parser("edit", help="Edit the description of a single path")
+    p = subparsers.add_parser(
+        "edit",
+        aliases=["e"],
+        help="Edit the description of a single path",
+    )
     p.add_argument("path", help="File or directory path (or a header/source pair display form)")
     p.add_argument("--config", help="Path to the config file (default: <root>/.readmetree.yml)")
     p.add_argument("--readme", help="Path to README.md (default: <root>/README.md)")
-    p.add_argument("--root", help="Project root (default: nearest ancestor with .git, else cwd)")
-    p.add_argument("--force", action="store_true", help="Edit even if the path doesn't exist on disk")
+    p.add_argument("-r", "--root", help="Project root (default: nearest ancestor with .git, else cwd)")
+    p.add_argument("-f", "--force", action="store_true", help="Edit even if the path doesn't exist on disk")
     p.add_argument("-v", "--verbose", action="store_true", help="Print filtered-out paths")
     p.set_defaults(func=run)
