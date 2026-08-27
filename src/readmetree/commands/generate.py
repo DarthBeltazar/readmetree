@@ -1,0 +1,86 @@
+"""`readmetree generate`: scan the project, ask about new/changed paths,
+and splice the resulting tree into README.md.
+"""
+
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+
+from .. import prompt, readme_io, scanner
+from ..config import ProjectConfig, diff_entries
+from ..defaults import CONFIG_FILENAME, README_FILENAME
+from ..render import render_tree
+from ..rootfind import find_root
+from ._shared import build_comments, rel_path, scan_project
+
+
+def run(args: argparse.Namespace) -> int:
+    root = find_root(args.root)
+    config_path = Path(args.config).resolve() if args.config else root / CONFIG_FILENAME
+    readme_path = Path(args.readme).resolve() if args.readme else root / README_FILENAME
+
+    config = ProjectConfig.load(config_path)
+    dir_node = scan_project(root, config, readme_rel_path=rel_path(root, readme_path), verbose=args.verbose)
+    entries = scanner.iter_entries(dir_node)
+    scanned_keys = [key for key, _, _ in entries]
+
+    diff = diff_entries(scanned_keys, config)
+    prompt.print_summary(diff.new, diff.removed, len(diff.kept))
+
+    if args.dry_run:
+        prompt.console.print("[dim](dry run — nothing written)[/dim]")
+        return 0
+
+    for key in diff.removed:
+        config.entries.pop(key, None)
+
+    for primary_key, secondary_path in scanner.iter_pairs(dir_node):
+        config.set_pair_with(primary_key, secondary_path)
+
+    cancelled = False
+    if diff.new:
+        new_set = set(diff.new)
+        items = [(key, label, kind) for key, label, kind in entries if key in new_set]
+        try:
+            answers = prompt.prompt_for_new_paths(items)
+        except prompt.PromptCancelled as e:
+            answers = e.answers
+            cancelled = True
+        for key, desc in answers.items():
+            config.set_description(key, desc)
+
+    config.save(config_path, entry_order=scanned_keys)
+
+    if cancelled:
+        answered = len(answers)
+        prompt.console.print(
+            f"[yellow]Cancelled — {answered}/{len(diff.new)} new path(s) answered and saved "
+            f"to {config_path.name}. README.md was not touched.[/yellow]"
+        )
+        return 1
+
+    comments = build_comments(config)
+    tree_text = render_tree(dir_node, comments)
+
+    try:
+        changed = readme_io.update_readme(readme_path, root.name, tree_text)
+    except readme_io.ReadmeMarkerError as e:
+        prompt.print_error(str(e))
+        return 1
+
+    if changed:
+        prompt.console.print(f"[green]{readme_path.name} updated.[/green]")
+    else:
+        prompt.console.print(f"{readme_path.name} already up to date.")
+    return 0
+
+
+def register(subparsers: "argparse._SubParsersAction") -> None:
+    p = subparsers.add_parser("generate", help="Scan the project and update README.md")
+    p.add_argument("--dry-run", action="store_true", help="Show what would change, write nothing")
+    p.add_argument("--config", help="Path to the config file (default: <root>/.readmetree.yml)")
+    p.add_argument("--readme", help="Path to README.md (default: <root>/README.md)")
+    p.add_argument("--root", help="Project root (default: nearest ancestor with .git, else cwd)")
+    p.add_argument("-v", "--verbose", action="store_true", help="Print filtered-out paths")
+    p.set_defaults(func=run)

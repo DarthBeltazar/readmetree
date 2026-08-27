@@ -1,0 +1,5 @@
+ruamel.yaml>=0.18
+pathspec>=0.12
+rich>=13
+questionary>=2
+pytest>=8

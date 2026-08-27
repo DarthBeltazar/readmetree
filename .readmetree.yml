@@ -1,0 +1,68 @@
+version: 1
+exclude:
+  - tests/fixtures/
+force_include: []
+collapse_siblings: []
+entries:
+  src/:
+    description: ""
+  src/readmetree/:
+    description: ""
+  src/readmetree/commands/:
+    description: "generate/edit command orchestration"
+  src/readmetree/commands/__init__.py:
+    description: ""
+  src/readmetree/commands/_shared.py:
+    description: "shared plumbing: build the ignore matcher + scan the tree, build the comment map"
+  src/readmetree/commands/edit.py:
+    description: "readmetree edit <path>: point-edit one description without a full rescan"
+  src/readmetree/commands/generate.py:
+    description: "readmetree generate: full scan, diff against config, prompt for new paths, update README.md"
+  src/readmetree/__init__.py:
+    description: "package version"
+  src/readmetree/cli.py:
+    description: "argparse entry point, dispatches to the generate/edit subcommands"
+  src/readmetree/config.py:
+    description: ".readmetree.yml model: load/save (ruamel.yaml round-trip) and diff against a scan"
+  src/readmetree/defaults.py:
+    description: "always-ignored paths, README markers, header/source extension-pair whitelist"
+  src/readmetree/ignore.py:
+    description: "gitignore-aware path filtering (git check-ignore, or pathspec when there's no .git)"
+  src/readmetree/model.py:
+    description: "tree dataclasses: FileNode, DirNode, CollapsedGroupNode"
+  src/readmetree/pairing.py:
+    description: "merges Vec3.h + Vec3.cpp into one Vec3.h/.cpp tree line"
+  src/readmetree/prompt.py:
+    description: "interactive prompting (questionary) and console output (rich)"
+  src/readmetree/readme_io.py:
+    description: "finds the tree:start/tree:end markers and splices the rendered tree into README.md"
+  src/readmetree/render.py:
+    description: "pure DirNode-tree -> ASCII tree-art renderer, with per-sibling-group comment alignment"
+  src/readmetree/rootfind.py:
+    description: "locates the project root (nearest ancestor with .git, else cwd)"
+  src/readmetree/scanner.py:
+    description: "walks the filesystem, applies ignore rules, merges pairs/collapsed groups, sorts the tree"
+  tests/:
+    description: ""
+  tests/conftest.py:
+    description: "pytest fixture: a fresh tmp_path copy of the example project fixture"
+  tests/test_config_diff.py:
+    description: ".readmetree.yml load/save round-trip and new/removed/kept diffing"
+  tests/test_e2e_generate.py:
+    description: "full CLI runs (generate/edit) against the example project fixture"
+  tests/test_pairing.py:
+    description: "header/source pair merging rules"
+  tests/test_prompt_fallback.py:
+    description: "plain input() fallback when questionary can't attach to a console"
+  tests/test_readme_markers.py:
+    description: "tree:start/tree:end marker splicing, including CRLF and error cases"
+  tests/test_render_idempotent.py:
+    description: "ASCII tree rendering, comment-column alignment, idempotency"
+  tests/test_scanner_ignore.py:
+    description: "git check-ignore vs pathspec-fallback ignore filtering produce the same tree"
+  .gitignore:
+    description: ""
+  pyproject.toml:
+    description: "package metadata, dependencies, the readmetree console-script entry point"
+  requirements.txt:
+    description: "dependencies for local development (mirrors pyproject.toml, plus pytest)"

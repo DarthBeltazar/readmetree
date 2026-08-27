@@ -1,0 +1,21 @@
+[project]
+name = "readmetree"
+version = "0.1.0"
+description = "Generate and maintain an annotated project tree inside README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "ruamel.yaml>=0.18",
+    "pathspec>=0.12",
+    "rich>=13",
+    "questionary>=2",
+]
+
+[project.scripts]
+readmetree = "readmetree.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
