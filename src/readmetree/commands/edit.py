@@ -13,11 +13,12 @@ from ..config import ProjectConfig
 from ..defaults import CONFIG_FILENAME, README_FILENAME
 from ..render import render_tree
 from ..rootfind import find_root
-from ._shared import build_comments, rel_path, scan_project
+from ._shared import announce_root_if_surprising, build_comments, rel_path, scan_project
 
 
 def run(args: argparse.Namespace) -> int:
     root = find_root(args.root)
+    announce_root_if_surprising(root, args.root)
     config_path = Path(args.config).resolve() if args.config else root / CONFIG_FILENAME
     readme_path = Path(args.readme).resolve() if args.readme else root / README_FILENAME
 

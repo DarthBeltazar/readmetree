@@ -93,9 +93,19 @@ def prompt_for_edit(label: str, current: str | None) -> str | None:
         return None
 
 
-def print_summary(new: list[str], removed: list[str], kept_count: int) -> None:
+def print_summary(
+    new: list[str], hidden_but_present: list[str], removed: list[str], kept_count: int
+) -> None:
     if new:
         console.print(f"[green]{len(new)} new path(s) found.[/green]")
+    if hidden_but_present:
+        console.print(
+            f"[yellow]{len(hidden_but_present)} path(s) still exist but are no longer "
+            f"shown (untracked/.gitignore'd/empty) — description(s) kept in case they "
+            f"come back:[/yellow]"
+        )
+        for path in hidden_but_present:
+            console.print(f"  [yellow]- {path}[/yellow]")
     if removed:
         console.print(
             f"[yellow]{len(removed)} path(s) no longer exist and will be removed "

@@ -4,10 +4,24 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from .. import prompt
 from ..config import ProjectConfig
 from ..ignore import IgnoreMatcher
 from ..model import DirNode
 from ..scanner import scan
+
+
+def announce_root_if_surprising(root: Path, explicit_root: str | None) -> None:
+    """If --root wasn't passed and the discovered root (nearest ancestor
+    with .git) isn't the current directory, say so. Silently operating on
+    a different, outer project because the cwd happens to be git-less but
+    nested inside someone else's repo is exactly the kind of surprise a
+    person only notices after the fact.
+    """
+    if explicit_root:
+        return
+    if root != Path.cwd().resolve():
+        prompt.console.print(f"[dim]Using project root: {root} (nearest ancestor with .git)[/dim]")
 
 
 def scan_project(

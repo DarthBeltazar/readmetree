@@ -55,8 +55,6 @@ entries:
     description: "скрипты для флеймграфов (подтягиваются скриптом, в git не хранятся)"
   tools/wsl-profile.sh:
     description: сборка + профилирование через perf в WSL
-  .gitignore:
-    description: ""
   background.exr:
     description: HDR-панорама фона, на который проецируются улетевшие лучи
   CMakeLists.txt:

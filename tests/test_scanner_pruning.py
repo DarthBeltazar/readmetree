@@ -31,8 +31,8 @@ def test_directory_only_containing_ignored_files_is_pruned(tmp_path: Path):
     node = scan_project(tmp_path, config)
     keys = [k for k, _, _ in scanner.iter_entries(node)]
 
-    # .gitignore itself isn't gitignored — it's a real, legitimate file.
-    assert sorted(keys) == sorted(["a.txt", ".gitignore"])
+    # .gitignore itself is always excluded from the tree.
+    assert keys == ["a.txt"]
     assert "build/" not in keys
 
 
@@ -48,4 +48,4 @@ def test_force_included_collapsed_empty_dir_is_kept(tmp_path: Path):
     node = scan_project(tmp_path, config)
     keys = [k for k, _, _ in scanner.iter_entries(node)]
 
-    assert sorted(keys) == sorted(["seq/", ".gitignore"])
+    assert keys == ["seq/"]

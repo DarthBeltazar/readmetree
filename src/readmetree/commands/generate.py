@@ -12,11 +12,12 @@ from ..config import ProjectConfig, diff_entries
 from ..defaults import CONFIG_FILENAME, README_FILENAME
 from ..render import render_tree
 from ..rootfind import find_root
-from ._shared import build_comments, rel_path, scan_project
+from ._shared import announce_root_if_surprising, build_comments, rel_path, scan_project
 
 
 def run(args: argparse.Namespace) -> int:
     root = find_root(args.root)
+    announce_root_if_surprising(root, args.root)
     config_path = Path(args.config).resolve() if args.config else root / CONFIG_FILENAME
     readme_path = Path(args.readme).resolve() if args.readme else root / README_FILENAME
 
@@ -26,13 +27,22 @@ def run(args: argparse.Namespace) -> int:
     scanned_keys = [key for key, _, _ in entries]
 
     diff = diff_entries(scanned_keys, config)
-    prompt.print_summary(diff.new, diff.removed, len(diff.kept))
+
+    # A key can be "removed" from the scan for two very different reasons:
+    # the path is actually gone from disk (safe to delete the description —
+    # it can't be regenerated), or it still exists but got filtered out this
+    # run (newly untracked, newly .gitignore'd, now-empty directory, ...).
+    # Only the first case should ever touch a human-written description.
+    truly_gone = [k for k in diff.removed if not (root / k.rstrip("/")).exists()]
+    still_present = [k for k in diff.removed if k not in truly_gone]
+
+    prompt.print_summary(diff.new, still_present, truly_gone, len(diff.kept))
 
     if args.dry_run:
         prompt.console.print("[dim](dry run — nothing written)[/dim]")
         return 0
 
-    for key in diff.removed:
+    for key in truly_gone:
         config.entries.pop(key, None)
 
     for primary_key, secondary_path in scanner.iter_pairs(dir_node):

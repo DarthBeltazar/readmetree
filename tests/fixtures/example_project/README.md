@@ -22,7 +22,6 @@
 ├── tools/
 │   ├── FlameGraph/     # скрипты для флеймграфов (подтягиваются скриптом, в git не хранятся)
 │   └── wsl-profile.sh  # сборка + профилирование через perf в WSL
-├── .gitignore
 ├── background.exr  # HDR-панорама фона, на который проецируются улетевшие лучи
 └── CMakeLists.txt  # конфигурация сборки, подтягивает stb и tinyexr через FetchContent
 ```

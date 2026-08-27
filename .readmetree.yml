@@ -27,7 +27,7 @@ entries:
   src/readmetree/defaults.py:
     description: "always-ignored paths, README markers, header/source extension-pair whitelist"
   src/readmetree/ignore.py:
-    description: "gitignore-aware path filtering (git check-ignore, or pathspec when there's no .git)"
+    description: "path filtering: .gitignore, always-excluded paths, and git-tracked-files-only"
   src/readmetree/model.py:
     description: "tree dataclasses: FileNode, DirNode, CollapsedGroupNode"
   src/readmetree/pairing.py:
@@ -59,11 +59,9 @@ entries:
   tests/test_render_idempotent.py:
     description: "ASCII tree rendering, comment-column alignment, idempotency"
   tests/test_scanner_ignore.py:
-    description: "git check-ignore vs pathspec-fallback ignore filtering produce the same tree"
+    description: "git-tracked-files filtering, worktree .git-as-file, untracking keeps the description"
   tests/test_scanner_pruning.py:
     description: "empty directories (including cascaded-empty ones) are dropped from the tree"
-  .gitignore:
-    description: ""
   pyproject.toml:
     description: "package metadata, dependencies, the readmetree console-script entry point"
   requirements.txt:

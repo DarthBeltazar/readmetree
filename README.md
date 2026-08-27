@@ -28,8 +28,10 @@ markers (see the bottom of this file for what they look like).
 If those markers aren't in `README.md` yet, the tree is appended to the
 end of the file; if `README.md` doesn't exist, it's created. Descriptions
 you already gave are reused as-is on the next run — only new or renamed
-paths are asked about again, and paths deleted from disk are dropped from
-the config automatically (with a warning).
+paths are asked about again. A description is only ever deleted from the
+config when its path is actually gone from disk; a path that's merely
+hidden from the tree (see below) keeps its description in case it comes
+back.
 
 When asked for a description: Enter records an empty one (fine for plain
 folders like `src/` — you won't be asked again); `?` skips the path for
@@ -72,6 +74,21 @@ shared description automatically — no config needed.
 Renames aren't detected: a renamed path shows up as one deletion and one
 new path to describe.
 
+### What shows up in the tree
+
+In a git repo, only files git actually tracks (staged or committed) go in
+the tree — a new file needs `git add` before `readmetree` will pick it up.
+`.gitignore`d paths and empty directories are left out too (`force_include`
+is the escape hatch for a `.gitignore`d path you still want documented).
+`.gitignore` itself is never shown. Outside a git repo, there's no
+"tracked" to check, so only `.gitignore` filtering applies.
+
+If you run `readmetree` from a subdirectory that isn't itself a repo root
+(e.g. a nested test fixture) and don't pass `--root`, it walks up to the
+nearest ancestor with a `.git` — which may be a *different*, outer
+project. It prints which root it picked whenever this isn't the current
+directory; pass `--root` explicitly if that's not what you want.
+
 <!-- tree:start -->
 ```
 ├── src/
@@ -85,7 +102,7 @@ new path to describe.
 │       ├── cli.py        # argparse entry point, dispatches to the generate/edit subcommands
 │       ├── config.py     # .readmetree.yml model: load/save (ruamel.yaml round-trip) and diff against a scan
 │       ├── defaults.py   # always-ignored paths, README markers, header/source extension-pair whitelist
-│       ├── ignore.py     # gitignore-aware path filtering (git check-ignore, or pathspec when there's no .git)
+│       ├── ignore.py     # path filtering: .gitignore, always-excluded paths, and git-tracked-files-only
 │       ├── model.py      # tree dataclasses: FileNode, DirNode, CollapsedGroupNode
 │       ├── pairing.py    # merges Vec3.h + Vec3.cpp into one Vec3.h/.cpp tree line
 │       ├── prompt.py     # interactive prompting (questionary) and console output (rich)
@@ -101,9 +118,8 @@ new path to describe.
 │   ├── test_prompt_fallback.py    # plain input() fallback when questionary can't attach to a console
 │   ├── test_readme_markers.py     # tree:start/tree:end marker splicing, including CRLF and error cases
 │   ├── test_render_idempotent.py  # ASCII tree rendering, comment-column alignment, idempotency
-│   ├── test_scanner_ignore.py     # git check-ignore vs pathspec-fallback ignore filtering produce the same tree
+│   ├── test_scanner_ignore.py     # git-tracked-files filtering, worktree .git-as-file, untracking keeps the description
 │   └── test_scanner_pruning.py    # empty directories (including cascaded-empty ones) are dropped from the tree
-├── .gitignore
 ├── pyproject.toml    # package metadata, dependencies, the readmetree console-script entry point
 └── requirements.txt  # dependencies for local development (mirrors pyproject.toml, plus pytest)
 ```

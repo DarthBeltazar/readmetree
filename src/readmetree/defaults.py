@@ -19,6 +19,7 @@ TREE_FENCE_LANG = ""  # plain fenced block; a language tag would enable syntax
 # Extend per-project via the `exclude:` list in .readmetree.yml.
 ALWAYS_EXCLUDE = [
     ".git/",
+    ".gitignore",
     CONFIG_FILENAME,
     "__pycache__/",
     "*.pyc",

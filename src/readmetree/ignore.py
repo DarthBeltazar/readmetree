@@ -2,10 +2,19 @@
 
 Priority, highest first:
 1. `force_include` patterns in the config always win (a path they cover is
-   shown even if .gitignore or the always-exclude list would hide it).
-2. Everything else is excluded if it matches .gitignore (via `git
-   check-ignore` when a repo is present, otherwise a `pathspec` fallback), the
-   built-in always-exclude list, or the config's `exclude:` patterns.
+   shown even if .gitignore, the untracked-file check, or the
+   always-exclude list would hide it).
+2. Everything else is excluded if it matches the built-in always-exclude
+   list, the config's `exclude:` patterns, or .gitignore (via `git
+   check-ignore` when a repo is present, otherwise a `pathspec` fallback).
+3. In a git repo, a *file* that isn't tracked by git (i.e. never `git
+   add`ed) is excluded too, even if nothing ignores it — the tree is meant
+   to reflect what's actually in the repository, not scratch files sitting
+   in the working copy. This only applies to files; directories aren't
+   tracked by git themselves; an untracked-only directory ends up empty and
+   is dropped by the scanner's own empty-directory pruning instead. Outside
+   a git repo there's no way to know what "tracked" would mean, so this
+   check is skipped and only .gitignore filtering applies.
 
 Ignore checks are meant to run *before* descending into a directory, so a
 huge ignored tree (node_modules, a build dir) is never even walked.
@@ -36,9 +45,17 @@ class IgnoreMatcher:
         self._always_spec = pathspec.PathSpec.from_lines(
             "gitignore", ALWAYS_EXCLUDE + list(extra_exclude or [])
         )
-        self._use_git = (root / ".git").is_dir() and _git_available()
+        # .exists() rather than .is_dir(): in a git worktree or submodule,
+        # .git is a *file* containing "gitdir: ...", not a directory — but
+        # git ls-files/check-ignore work the same either way when cwd is
+        # set to the repo root. rootfind.find_root() already uses the same
+        # .exists() check for consistency.
+        self._use_git = (root / ".git").exists() and _git_available()
         self._gitignore_spec: pathspec.PathSpec | None = None
-        if not self._use_git:
+        self._tracked_files: set[str] | None = None
+        if self._use_git:
+            self._tracked_files = self._git_ls_files()
+        else:
             self._gitignore_spec = self._build_pathspec_fallback()
 
     # -- public API ---------------------------------------------------
@@ -71,7 +88,12 @@ class IgnoreMatcher:
                 is_gitignored = bool(
                     self._gitignore_spec and self._gitignore_spec.match_file(check_path)
                 )
-            if (is_always or is_gitignored) and not self._is_force_included(rel):
+            is_untracked_file = (
+                self._tracked_files is not None
+                and not is_dir.get(name)
+                and rel not in self._tracked_files
+            )
+            if (is_always or is_gitignored or is_untracked_file) and not self._is_force_included(rel):
                 ignored.add(name)
 
         return ignored
@@ -100,6 +122,23 @@ class IgnoreMatcher:
                 ["git", "check-ignore", "--stdin", "-z"],
                 cwd=self.root,
                 input="\0".join(rel_paths).encode("utf-8"),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+            )
+        except OSError:
+            return set()
+        out = proc.stdout.decode("utf-8", errors="replace")
+        return {p for p in out.split("\0") if p}
+
+    def _git_ls_files(self) -> set[str]:
+        """Files git actually tracks (staged or committed) — the set an
+        untracked working-copy file needs to join before it shows up in
+        the tree.
+        """
+        try:
+            proc = subprocess.run(
+                ["git", "ls-files", "-z"],
+                cwd=self.root,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,
             )
