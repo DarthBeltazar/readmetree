@@ -78,7 +78,14 @@ def _scan_dir(
         else:
             child = _scan_dir(root, rel, ignore_matcher, force_include, collapse_siblings)
             child.display_name = name + "/"
-            children.append(child)
+            # Skip directories with nothing left in them after filtering —
+            # a folder that's only .gitignore'd files, or that only
+            # contained now-pruned empty subfolders, doesn't earn a tree
+            # line. Force-included collapsed dirs are exempt: their
+            # contents were never scanned, so "empty" isn't known either
+            # way, and they were explicitly asked for.
+            if child.children or child.collapsed:
+                children.append(child)
 
     children.extend(group_files(dir_rel_path, file_names))
 

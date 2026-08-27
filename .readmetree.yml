@@ -60,6 +60,8 @@ entries:
     description: "ASCII tree rendering, comment-column alignment, idempotency"
   tests/test_scanner_ignore.py:
     description: "git check-ignore vs pathspec-fallback ignore filtering produce the same tree"
+  tests/test_scanner_pruning.py:
+    description: "empty directories (including cascaded-empty ones) are dropped from the tree"
   .gitignore:
     description: ""
   pyproject.toml:

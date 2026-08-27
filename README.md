@@ -101,7 +101,8 @@ new path to describe.
 │   ├── test_prompt_fallback.py    # plain input() fallback when questionary can't attach to a console
 │   ├── test_readme_markers.py     # tree:start/tree:end marker splicing, including CRLF and error cases
 │   ├── test_render_idempotent.py  # ASCII tree rendering, comment-column alignment, idempotency
-│   └── test_scanner_ignore.py     # git check-ignore vs pathspec-fallback ignore filtering produce the same tree
+│   ├── test_scanner_ignore.py     # git check-ignore vs pathspec-fallback ignore filtering produce the same tree
+│   └── test_scanner_pruning.py    # empty directories (including cascaded-empty ones) are dropped from the tree
 ├── .gitignore
 ├── pyproject.toml    # package metadata, dependencies, the readmetree console-script entry point
 └── requirements.txt  # dependencies for local development (mirrors pyproject.toml, plus pytest)

@@ -7,8 +7,13 @@ from __future__ import annotations
 
 import questionary
 from rich.console import Console
+from rich.markup import escape
 
 console = Console()
+
+# Bright, bold highlight for the path currently being asked about — the
+# thing most in need of standing out on the line.
+_PATH_STYLE = "bold bright_yellow"
 
 
 class PromptCancelled(Exception):
@@ -56,7 +61,10 @@ def prompt_for_new_paths(items: list[tuple[str, str, str]]) -> dict[str, str]:
     answers: dict[str, str] = {}
     total = len(items)
     for i, (key, label, kind) in enumerate(items, start=1):
-        console.print(f"[cyan][{i}/{total}][/cyan] New {kind}: [bold]{label}[/bold]")
+        console.print(
+            f"[cyan][{i}/{total}][/cyan] New {kind}: "
+            f"[{_PATH_STYLE}]{escape(label)}[/{_PATH_STYLE}]"
+        )
         try:
             text = _ask_text("Description (Enter for none, '?' to skip and ask again later):")
         except KeyboardInterrupt:
@@ -76,8 +84,11 @@ def prompt_for_edit(label: str, current: str | None) -> str | None:
     """Ask for an updated description for a single path, pre-filled with
     the current value. Returns None if cancelled (Ctrl+C).
     """
+    # questionary doesn't render Rich markup in its own prompt line, so the
+    # highlighted path is printed separately above the (plain) question.
+    console.print(f"Editing: [{_PATH_STYLE}]{escape(label)}[/{_PATH_STYLE}]")
     try:
-        return _ask_text(f"Description for {label}:", default=current or "")
+        return _ask_text("Description:", default=current or "")
     except KeyboardInterrupt:
         return None
 
