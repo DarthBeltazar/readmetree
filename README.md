@@ -92,6 +92,13 @@ readmetree edit src/core/Vec3.h
 - the merged pair display form (`src/core/Vec3.h/.cpp`)
 - either half of a merged pair on its own (`src/core/Vec3.cpp` finds the same entry as `src/core/Vec3.h`)
 
+**No path → arrow-key browser.** `readmetree edit` on its own shows the
+tree exactly as it renders in `README.md`; move with ↑/↓, Enter to edit
+that line's description, which saves and re-renders immediately, then
+you're back on the (now-updated) list — pick another line or select
+"(done)" to stop. If the terminal can't do arrow-key menus (piped input,
+some embedded consoles), it falls back to a plain numbered list.
+
 #### Flags
 
 | Flag | Short | Meaning |
@@ -108,6 +115,7 @@ readmetree edit src/core/Vec3.h
 readmetree edit src/render/Camera.h
 readmetree e src/render/Camera.h/.cpp   # same entry, pair display form
 readmetree edit --force some/future/path.py   # pre-seed a description
+readmetree edit                          # arrow-key browser, no target path
 ```
 
 ---
@@ -180,24 +188,24 @@ directory; pass `--root` explicitly if that's not what you want.
 ```
 ├── .github/
 │   └── workflows/
-│       └── tests.yml  # GitHub Actions: run pytest on push/PR to main (Python 3.9 and 3.12)
+│       └── tests.yml     # GitHub Actions: run pytest on push/PR to main (Python 3.9 and 3.12)
 ├── src/
 │   └── readmetree/
 │       ├── commands/     # generate/edit command orchestration
 │       │   ├── __init__.py
 │       │   ├── _shared.py   # shared plumbing: build the ignore matcher + scan the tree, build the comment map
-│       │   ├── edit.py      # readmetree edit <path>: point-edit one description without a full rescan
+│       │   ├── edit.py      # readmetree edit <path>: point-edit one description; no path launches an arrow-key browser
 │       │   └── generate.py  # readmetree generate: full scan, diff against config, prompt for new paths, update README.md; --check for CI
 │       ├── __init__.py   # package version
-│       ├── cli.py        # argparse entry point, dispatches to the generate/edit subcommands
+│       ├── cli.py        # argparse entry point; forces UTF-8 stdout/stderr for legacy-codepage Windows consoles
 │       ├── config.py     # .readmetree.yml model: load/save/serialize (ruamel.yaml round-trip) and diff against a scan
 │       ├── defaults.py   # always-ignored paths, README markers, header/source extension-pair whitelist
 │       ├── ignore.py     # path filtering: .gitignore, always-excluded paths, and git-tracked-files-only
 │       ├── model.py      # tree dataclasses: FileNode, DirNode, CollapsedGroupNode
 │       ├── pairing.py    # merges Vec3.h + Vec3.cpp into one Vec3.h/.cpp tree line
-│       ├── prompt.py     # interactive prompting (questionary) and console output (rich)
+│       ├── prompt.py     # interactive prompting (questionary), the arrow-key browse menu, and console output (rich)
 │       ├── readme_io.py  # finds the tree:start/tree:end markers and splices the rendered tree into README.md
-│       ├── render.py     # pure DirNode-tree -> ASCII tree-art renderer, with per-sibling-group comment alignment
+│       ├── render.py     # pure DirNode-tree -> ASCII tree-art renderer, comment column aligned per nesting depth
 │       ├── rootfind.py   # locates the project root (nearest ancestor with .git, else cwd)
 │       └── scanner.py    # walks the filesystem, applies ignore rules, merges pairs/collapsed groups, sorts the tree
 ├── tests/

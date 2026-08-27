@@ -5,11 +5,20 @@ Uses `questionary` for input and `rich` for colored summaries/progress.
 
 from __future__ import annotations
 
+import sys
+
 import questionary
 from rich.console import Console
 from rich.markup import escape
 
-console = Console()
+# legacy_windows=False: rich's own "legacy Windows console" writer
+# (win32 API calls through a codepage like cp1251) misfires in terminals
+# that aren't a real Win32 console — e.g. mintty/Git Bash — raising
+# UnicodeEncodeError on ordinary output, ASCII included. Forcing the
+# regular stdout-based writer sidesteps that; it's also correct in a
+# genuine modern Windows Terminal/PowerShell session (those already
+# support VT/ANSI, which is what disables rich's legacy path anyway).
+console = Console(legacy_windows=False)
 
 # Bright, bold highlight for the path currently being asked about — the
 # thing most in need of standing out on the line.
@@ -78,6 +87,83 @@ def prompt_for_new_paths(items: list[tuple[str, str, str]]) -> dict[str, str]:
             continue
         answers[key] = text
     return answers
+
+
+_DONE = "\0done"  # sentinel value for the "(done)" choice; never a real config_key
+
+
+def browse_select(rows: list[tuple[str, str]]) -> str | None:
+    """Arrow-key menu over rendered tree lines (↑/↓ to move, Enter to
+    pick) — `rows` is (config_key, rendered_line) pairs, in tree order,
+    exactly as they'll appear in README.md. Returns the chosen config_key,
+    or None if the user picked "(done)" / cancelled (Ctrl+C, or no usable
+    console — falls back to a plain numbered list in that case).
+    """
+    choices = [questionary.Choice(title=line, value=key) for key, line in rows]
+    choices.append(questionary.Separator())
+    choices.append(questionary.Choice(title="(done)", value=_DONE))
+
+    try:
+        result = questionary.select(
+            "Pick a path to edit (↑/↓, Enter to select, Ctrl+C to quit):",
+            choices=choices,
+        ).ask()
+    except KeyboardInterrupt:
+        return None
+    except Exception:
+        return _browse_select_fallback(rows)
+
+    return None if result in (None, _DONE) else result
+
+
+_ASCII_TREE_CHARS = {"├── ": "|-- ", "└── ": "`-- ", "│   ": "|   "}
+
+
+def _print_row_safe(index: str, line: str) -> None:
+    """Print one numbered-list row, degrading gracefully if the console's
+    codepage can't encode the tree's box-drawing characters (this is the
+    fallback path for exactly that kind of degraded console, so it needs
+    to survive codepages like cp1251 that have no glyphs for '├'/'└'/'│').
+    """
+    try:
+        console.print(f"[cyan]{index}[/cyan] {escape(line)}")
+    except UnicodeEncodeError:
+        ascii_line = line
+        for box_char, ascii_equivalent in _ASCII_TREE_CHARS.items():
+            ascii_line = ascii_line.replace(box_char, ascii_equivalent)
+        try:
+            print(f"{index} {ascii_line}")
+        except UnicodeEncodeError:
+            # Something beyond the tree glyphs (an exotic character in a
+            # hand-written description, say) still doesn't fit this
+            # console's codepage — replace what won't encode rather than
+            # crash the whole browse session over one unprintable row.
+            encoding = sys.stdout.encoding or "ascii"
+            safe = f"{index} {ascii_line}".encode(encoding, errors="replace").decode(encoding)
+            print(safe)
+
+
+def _browse_select_fallback(rows: list[tuple[str, str]]) -> str | None:
+    """Plain numbered-list fallback for consoles questionary.select can't
+    attach to (same NoConsoleScreenBufferError situation as _ask_text).
+    No arrow keys here — type a number instead.
+    """
+    console.print(
+        "[dim](arrow-key menu unavailable in this console; using a numbered list instead)[/dim]"
+    )
+    for i, (_, line) in enumerate(rows, start=1):
+        _print_row_safe(f"{i:>3}.", line)
+    _print_row_safe("  0.", "(done)")
+    try:
+        raw = input("Number: ").strip()
+    except (EOFError, KeyboardInterrupt):
+        return None
+    if not raw.isdigit():
+        return None
+    idx = int(raw)
+    if idx <= 0 or idx > len(rows):
+        return None
+    return rows[idx - 1][0]
 
 
 def prompt_for_edit(label: str, current: str | None) -> str | None:

@@ -39,7 +39,7 @@ def test_last_child_uses_corner_connector():
     assert lines[1].startswith("└── ")
 
 
-def test_comment_column_is_per_sibling_group_not_global():
+def test_comment_column_is_per_depth_not_global():
     # A short name at the top level should not be padded out to match a
     # much longer name several levels deeper.
     deep = DirNode(
@@ -69,6 +69,51 @@ def test_comment_column_is_per_sibling_group_not_global():
     lines = out.split("\n")
     top_level_line = lines[0]
     assert top_level_line == "├── a.txt  # short"
+
+
+def test_single_child_folder_aligns_with_others_at_the_same_depth():
+    # The whole point of aligning by depth rather than by immediate parent:
+    # a folder with exactly one commented child shouldn't get its own
+    # tightly-fit column isolated from its neighbors — it should share the
+    # column with everything else at the same nesting level, even when
+    # those live under a completely different subtree.
+    physics = DirNode(
+        rel_path="src/physics",
+        display_name="physics/",
+        config_key="src/physics/",
+        children=[
+            FileNode(
+                rel_path="src/physics/physics.h",
+                display_name="physics.h/.cpp",
+                config_key="src/physics/physics.h",
+            )
+        ],
+    )
+    render_dir = DirNode(
+        rel_path="src/render",
+        display_name="render/",
+        config_key="src/render/",
+        children=[
+            FileNode(
+                rel_path="src/render/AccretionDisc.h",
+                display_name="AccretionDisc.h/.cpp",
+                config_key="src/render/AccretionDisc.h",
+            )
+        ],
+    )
+    tree = _root([physics, render_dir])
+    comments = {
+        "src/physics/physics.h": "physics",
+        "src/render/AccretionDisc.h": "disc color",
+    }
+    out = render_tree(tree, comments)
+    lines = out.split("\n")
+    # Both single-child lines are one level deep (under physics/ and
+    # render/ respectively) — same depth, so same column, even though
+    # "physics.h/.cpp" alone is much shorter than "AccretionDisc.h/.cpp".
+    physics_line = next(l for l in lines if "physics.h/.cpp" in l)
+    disc_line = next(l for l in lines if "AccretionDisc.h/.cpp" in l)
+    assert physics_line.index("#") == disc_line.index("#")
 
 
 def test_collapsed_group_description_from_node_not_comments_dict():

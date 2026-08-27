@@ -19,7 +19,26 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _use_utf8_console() -> None:
+    """Some Windows terminals (Git Bash/mintty in particular) hand Python
+    a stdout/stderr locked to the console's legacy codepage (cp1251,
+    cp866, ...) even though the terminal itself renders UTF-8 fine —
+    every box-drawing character or non-ASCII description then raises
+    UnicodeEncodeError. Force UTF-8 where Python allows it; harmless
+    no-op on a stream that's already UTF-8 (most Linux/macOS terminals,
+    modern Windows Terminal/PowerShell).
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure:
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except (ValueError, OSError):
+                pass
+
+
 def main(argv: list[str] | None = None) -> int:
+    _use_utf8_console()
     parser = build_parser()
     args = parser.parse_args(argv)
     try:

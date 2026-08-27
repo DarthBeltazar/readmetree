@@ -153,6 +153,68 @@ def test_edit_directory_without_trailing_slash(example_project: Path, monkeypatc
     assert config_after.get_description("src/core/") == "core math types"
 
 
+def test_browse_mode_edits_two_paths_then_exits(example_project: Path, monkeypatch):
+    """`readmetree edit` with no path: pick two entries in a row (via the
+    mocked arrow-key selector), edit both, then hit "done".
+    """
+    monkeypatch.setattr(prompt, "prompt_for_new_paths", lambda items: {})
+    _run(["generate", "--root", str(example_project)])
+
+    picks = iter(["src/core/Vec3.h", "background.exr", None])
+    monkeypatch.setattr(prompt, "browse_select", lambda rows: next(picks))
+
+    answers = iter(["via browse: vec3", "via browse: exr"])
+    monkeypatch.setattr(prompt, "prompt_for_edit", lambda label, current: next(answers))
+
+    rc = _run(["edit", "--root", str(example_project)])
+    assert rc == 0
+
+    config = ProjectConfig.load(example_project / ".readmetree.yml")
+    assert config.get_description("src/core/Vec3.h") == "via browse: vec3"
+    assert config.get_description("background.exr") == "via browse: exr"
+
+    readme = (example_project / "README.md").read_text(encoding="utf-8")
+    assert "via browse: vec3" in readme
+    assert "via browse: exr" in readme
+
+
+def test_browse_mode_cancel_one_edit_keeps_looping(example_project: Path, monkeypatch):
+    monkeypatch.setattr(prompt, "prompt_for_new_paths", lambda items: {})
+    _run(["generate", "--root", str(example_project)])
+
+    picks = iter(["background.exr", "background.exr", None])
+    monkeypatch.setattr(prompt, "browse_select", lambda rows: next(picks))
+
+    # First edit of background.exr is cancelled (None); second succeeds.
+    answers = iter([None, "second try"])
+    monkeypatch.setattr(prompt, "prompt_for_edit", lambda label, current: next(answers))
+
+    rc = _run(["edit", "--root", str(example_project)])
+    assert rc == 0
+
+    config = ProjectConfig.load(example_project / ".readmetree.yml")
+    assert config.get_description("background.exr") == "second try"
+
+
+def test_browse_mode_rows_exclude_collapsed_groups(example_project: Path, monkeypatch):
+    monkeypatch.setattr(prompt, "prompt_for_new_paths", lambda items: {})
+    _run(["generate", "--root", str(example_project)])
+
+    captured_rows = {}
+
+    def fake_browse_select(rows):
+        captured_rows["rows"] = rows
+        return None
+
+    monkeypatch.setattr(prompt, "browse_select", fake_browse_select)
+
+    rc = _run(["edit", "--root", str(example_project)])
+    assert rc == 0
+    keys = [key for key, _ in captured_rows["rows"]]
+    assert not any(k.startswith("collapse:") for k in keys)
+    assert "src/core/Vec3.h" in keys
+
+
 def test_cancelled_generate_saves_partial_answers_but_not_readme(example_project: Path, monkeypatch):
     (example_project / "src" / "core" / "Another.h").write_text("", encoding="utf-8")
     readme_before = (example_project / "README.md").read_text(encoding="utf-8")
